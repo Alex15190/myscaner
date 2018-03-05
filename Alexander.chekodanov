@@ -63,11 +63,11 @@ True
     return (ch == '-')? -1 : 1;
   }
 
-  __float128 lexem_code: build_float(){
+  __float128 myfirstscaner: build_float(){
     return integer_part + fractional_part*powq(10,-frac_part_num_digits)+exp_sign*exponent;
   }
 
-  lexem_code precision2code(char32_t ch){
+  myfirstscaner precision2code(char32_t ch){
     switch (ch) {
       case: 'S':
         return Single;
