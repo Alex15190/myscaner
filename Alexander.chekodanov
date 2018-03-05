@@ -1,0 +1,205 @@
+%scaner_name myfirstscaner  
+
+%codes_type codes  
+
+%ident_name Id
+
+%idents {[:Letter:]|[:letter:]|_}{[:Letter:]|[:letter:]|_|[:digits:]}
+
+%class_members
+"__int128 integer_part;
+__int128 fractional_part;
+size_t exponent;
+ssize_t exp_sign;
+size_t frac_part_num_digits;
+bool is_float;
+char32_t precision;"
+
+%token_fields
+"unsigned __int128 int_val; __float128 float_val;"
+
+%codes 
+Int,                     Float,                 False,
+Char,                    String,                Void,
+If,                      Const,                 ElseIf, 
+Else,                    EndIf,                 For,
+While,                   Repeat,                Until,
+Exit,                    Continue,              Return,                   
+Read,                    Print,                 Kw_Int, 
+Kw_float,                Kw_bool,               Kw_char, 
+Kw_string,               Kw_void,               Var, 
+Kw_array,                Proto,                 Func,
+Equal,                   Plus,                  Minus,
+Multiplication,          Division,              Module, 
+LessThan,                MoreThan,              LessOrEqual, 
+MoreOrEqual,             Unequal,               FractDiv,
+LogicalOr,               LogicarNor,            LogicalNot,          
+LogicalAnd,              LogicalNAnd,           LXor,
+LNXor,                   BitXor,                BitOr,
+BNXor,                   BNor,                  BitAnd, 
+BinaryAnd,               BitLeftShift,          BirRightShift,
+FractPow,                Openif_block,          endif_block, 
+Open_round,              Close_round,           Dim_size, 
+Cond_op,                 Semicolon,             Comma,
+after_label,             Open_square,           Close_square,
+Colon,                   ColonAssign,           PlusColonAssign, 
+MinusColonAssign,        MultColonAssign,       SlashColonAssign, 
+SlashDotColonAssign,     TwoMultColonAssign,    TwoMultDotColonAssign, 
+PercColonAssign,         AmpColonAssign,        TilAmpColonAssign, 
+LShiftColAssign,         RShiftColAssign,       PipColAssign, 
+TilPipColAssign,         CirColAssign,          TilCirColAssign, 
+TwoPipColAssign,         NTwoPipColAssign,      TwoCirColAssign, 
+NTwoCirColAssign,        TwoColAssign,          NTwoColAssign,
+True  
+
+%impl_additions "
+ #include <quadmath>
+
+  size_t digit2int(char32_t ch) {
+    size_t v = ch - U'0';
+    return (v<=9)? v : (v&0b1101'1111) - 7;
+  }
+  __int128 setexp(char32_t ch) {
+    return (ch == '-')? -1 : 1;
+  }
+
+  __float128 lexem_code: build_float(){
+    return integer_part + fractional_part*powq(10,-frac_part_num_digits)+exp_sign*exponent;
+  }
+
+  lexem_code precision2code(char32_t ch){
+    switch (ch) {
+      case: 'S':
+        return Single;
+        break;
+      case: 'D':
+        return Double;
+        break;
+      case: 'E':
+        return Extended;
+        break;
+      case: 'Q':
+        return Quatro;
+        break;
+      default:
+        return Single;
+        break;
+    }
+  }
+"
+
+%keywords
+"if" : If, "else" : Else, "int" : Kw_int, "var": Var, "float" : Kw_float,"bool":Kw_bool,
+"char" : Kw_char, "string" :Kw_string, "void" : Kw_void, "array" : Array, "true": True,
+"false": False,"proto": Proto,"func": Func, "const": Const, "elif": Elif, "endif": Endif,
+"for": For,"in": In,"while": While, "repeat": Repeat, "until": Until, "exit": Exit,
+"continue": Continue, "return": Return, "read": Read, "print":Print
+
+%strings "buffer.clean();":"token.code=(buffer.length()==1)?Char:String;"
+{"([:ndq:]$write|""$write)*"}  
+
+%delimiters
+"=" : Equal, 
+"+" : Plus, 
+"-" : Minus, 
+"*" : Multiplication, 
+"/" : Division, 
+"%" : Module,  
+"<" : LessThan, 
+">" : MoreThan, 
+"<=" : LessOrEqual, 
+">=" : MoreOrEqual, 
+"!=" : Unequal, 
+"/." : FractDiv,
+"||" : LogicalOr, 
+"!||" : LogicalNor, 
+"!" : LogicalNot, 
+"&&" : LogicalAnd, 
+"!&&" : LogicalNAnd, 
+"^^" : LXor,
+"!^^" : LNXor, 
+"^" : BitXor, 
+"|" : BitOr,
+"~^" : BNXor, 
+"~|" : BNor, 
+"&" : BitAnd, 
+"~&" : BinaryAnd, 
+"<<" : BitLeftShift, 
+">>" : BirRightShift,
+"**." : FractPow, 
+"{" : Openif_block, 
+"}" : endif_block, 
+"(" : Open_round, 
+")" : Close_round,
+"#" : Dim_size, 
+"?" : cond_op, 
+";" : Semicolon, 
+"," : Comma, 
+"::" : after_label,
+"[" : Open_square,
+"]" : Close_square,
+":" : Colon, 
+":=" : ColonAssign, 
+"+:=" : PlusColonAssign, 
+"-:=" : MinusColonAssign, 
+"*:=" : MultColonAssign, 
+"/:=" : SlashColonAssign, 
+"/.:=" : SlashDotColonAssign, 
+"**:=" : TwoMultColonAssign, 
+"**.:=" : TwoMultDotColonAssign, 
+"%:=" : PercColonAssign, 
+"&:=" : AmpColonAssign, 
+"~&:=" : TilAmpColonAssign, 
+"<<:=" : LShiftColAssign, 
+">>:=" : RShiftColAssign, 
+"|:=" : PipColAssign, 
+"~|:=" : TilPipColAssign, 
+"^:=" : CirColAssign,
+"~^:=" : TilCirColAssign, 
+"||:=" : TwoPipColAssign, 
+"!||:=" : NTwoPipColAssign,  
+"^^:=" : TwoCirColAssign, 
+"!^^:=" : NTwoCirColAssign, 
+"&&:=" : TwoColAssign,
+"!&&:=" : NTwoColAssign
+
+%numbers "int_val = 0;
+          float_val = 0;
+          is_float = false;
+          integer_part = 0;
+          fractional_part = 0;
+          exponent = 1;
+          exp_sign = 1;
+          frac_part_num_digits = 0;
+          token.code = Integer;"
+          :
+          "
+          if(is_float){
+            token.float_val=build_float();
+            token.code = precision2code(precision);
+          } else {
+            token.int_val=integer_part;
+            token.code = Integer;
+          }"
+
+%action SetFlag "is_float = true;"
+
+%action AddDecNumb "int_value = int_value*10 + digit2int(ch);"
+
+%action AddBinNumb "int_value = (int_value << 1) + digit2int(ch);"
+
+%action AddOctNumb "int_value = (int_value << 3) + digit2int(ch);"
+
+%action AddHexNumb "int_value = (int_value << 4) + digit2int(ch);"
+
+%action AddToDegre "exponent = exponent*10 + digit2int(ch);" 
+
+%action AddDecToFract "fract_part = fract_part*10 + digit2int(ch); ++num_of_digits;"
+
+%action WhatSign "sign_of_degree = (ch == U'+')?1:(-1);"
+
+{[:digits:]$AddDecNumb('?[:digits:]$AddDecNumb)*(.$SetFlag[:digits:]$AddDecToFract('?[:digits:]$AddDecToFract)*)
+?((E|e)$SetFlag+|-$WhatSign?[:digits:]$AddToDegre('?[:digits:]$AddToDegre)*)?
+|0o[:odigits:]$AddOctNumb('?[:odigits:]$AddOctNumb)*|
+0(b|B)[:bdigits:]$AddBinNumb('?[:bdigits:]$AddBinNumb)*|
+0(x|X)[:xdigits:]$AddHexNumb('?[:xdigits:]$AddHexNumb)*}
