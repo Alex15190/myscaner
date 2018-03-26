@@ -1,4 +1,4 @@
-#include "../include/myfirstscaner.h"
+#include "../include/scaner.h"
 #include "../include/get_init_state.h"
 #include "../include/search_char.h"
 #include "../include/belongs.h"
@@ -6,29 +6,51 @@
 #include <string>
 #include <vector>
 #include "../include/operations_with_sets.h"
+
+  #include <quadmath>
+
+  size_t digit2int(char32_t ch) {
+    size_t v = ch - U'0';
+    return (v<=9)? v : (v&0b1101'1111) - 7;
+  }
+  __int128 setexp(char32_t ch) {
+    return (ch == '-')? -1 : 1;
+  }
+
+  __float128 Scaner::build_float(){
+    return integer_part + fractional_part*powq(10,-frac_part_num_digits)+exp_sign*exponent;
+  }
+
+  Lexem_code precision2code(char32_t ch){
+    switch (ch) {
+      case U'S': case U's':
+        return Float32;
+        break;
+      case U'D': case U'd':
+        return Float64;
+        break;
+      case U'E': case U'e':
+        return Float80;
+        break;
+      case U'Q': case U'q':
+        return Float128;
+        break;
+      default:
+        return Float32;
+        break;
+    }
+  }
 
-#include <quadmath> 
-size_t digit2int(char32_t ch)
-{
-size_t v =  ch - U'0';
-return (v<=9)? v:(v&0b1101'1111) - 7;
-};
-__float128 myfirstscaner::build_float()
-{
-__float128 num;                                                                               
-num = int_value + fract_part*powq(10, num_of_digits);
-num = num*powq(10, sign_of_degree*exponent);
-return num;}
-myfirstscaner::Automaton_proc myfirstscaner::procs[] = {
-    &myfirstscaner::start_proc(),     &myfirstscaner::unknown_proc(),   
-    &myfirstscaner::idkeyword_proc(), &myfirstscaner::delimiter_proc(), 
-    &myfirstscaner::number_proc(),    &myfirstscaner::string_proc()
+Scaner::Automaton_proc Scaner::procs[] = {
+    &Scaner::start_proc(),     &Scaner::unknown_proc(),   
+    &Scaner::idkeyword_proc(), &Scaner::delimiter_proc(), 
+    &Scaner::number_proc(),    &Scaner::string_proc()
 };
 
-myfirstscaner::Final_proc myfirstscaner::finals[] = {
-    &myfirstscaner::none_proc(),            &myfirstscaner::unknown_final_proc(),   
-    &myfirstscaner::idkeyword_final_proc(), &myfirstscaner::delimiter_final_proc(), 
-    &myfirstscaner::number_final_proc(),    &myfirstscaner::string_final_proc()
+Scaner::Final_proc Scaner::finals[] = {
+    &Scaner::none_proc(),            &Scaner::unknown_final_proc(),   
+    &Scaner::idkeyword_final_proc(), &Scaner::delimiter_final_proc(), 
+    &Scaner::number_final_proc(),    &Scaner::string_final_proc()
 };
 
 enum Category {
@@ -43,63 +65,58 @@ enum Category {
     NUMBER1,         NUMBER2,         
     IDKEYWORD_BEGIN, IDKEYWORD0,      
     IDKEYWORD1,      IDKEYWORD2,      
-    IDKEYWORD3,      IDKEYWORD4,      
-    IDKEYWORD5,      IDKEYWORD6,      
-    IDKEYWORD7,      IDKEYWORD8,      
-    IDKEYWORD9,      IDKEYWORD10,     
-    IDKEYWORD11,     IDKEYWORD12,     
-    IDKEYWORD13,     IDKEYWORD14,     
-    IDKEYWORD15,     Other
+    IDKEYWORD3,      Other
 };
 
-static const std::map<char32_t, uint64_t> categories_table = {
-    {'\0', 1},          {'\X01', 1},        {'\X02', 1},        {'\X03', 1},        
-    {'\X04', 1},        {'\X05', 1},        {'\X06', 1},        {'\a', 1},          
-    {'\b', 1},          {'\t', 1},          {'\n', 1},          {'\v', 1},          
-    {'\f', 1},          {'\r', 1},          {'\X0e', 1},        {'\X0f', 1},        
-    {'\X10', 1},        {'\X11', 1},        {'\X12', 1},        {'\X13', 1},        
-    {'\X14', 1},        {'\X15', 1},        {'\X16', 1},        {'\X17', 1},        
-    {'\X18', 1},        {'\X19', 1},        {'\X1a', 1},        {'\X1b', 1},        
-    {'\X1c', 1},        {'\X1d', 1},        {'\X1e', 1},        {'\X1f', 1},        
-    {' ', 536870913},   {'!', 2},           {", 12},            {'#', 2},           
-    {'$', 24},          {'%', 2},           {'&', 2},           {', 32},            
-    {'*', 2},           {'+', 2},           {',', 2},           {'-', 65538},       
-    {'.', 131072},      {'/', 2},           {'0', 1262494656},  {'1', 1266705280},  
-    {'2', 1266705152},  {'3', 1266705152},  {'4', 1266705152},  {'5', 1262510848},  
-    {'6', 1266705152},  {'7', 1262510848},  {'8', 1266704896},  {'9', 1262510592},  
-    {':', 2},           {';', 2},           {'<', 2},           {'=', 2},           
-    {'>', 2},           {'?', 2},           {'A', 1263280128},  {'B', 1263281152},  
-    {'C', 1263280128},  {'D', 1263312896},  {'E', 1263312896},  {'F', 1263280128},  
-    {'G', 1263271936},  {'H', 1263271936},  {'I', 1263271936},  {'J', 1263271936},  
-    {'K', 1263271936},  {'L', 1263271936},  {'M', 1263271936},  {'N', 1263271936},  
-    {'O', 1263271936},  {'P', 1263271936},  {'Q', 1263304704},  {'R', 1263271936},  
-    {'S', 1263304704},  {'T', 1263271936},  {'U', 1263271936},  {'V', 1263271936},  
-    {'W', 1263271936},  {'X', 1263273984},  {'Y', 1263271936},  {'Z', 1263271936},  
-    {'[', 2},           {'^', 2},           {'_', 1267466240},  {'a', 1267998720},  
-    {'b', 1263805440},  {'c', 1267998720},  {'d', 1267507200},  {'e', 1268031488},  
-    {'f', 1267998720},  {'g', 1401683968},  {'h', 18447335424}, {'i', 1267990528},  
-    {'j', 1263271936},  {'k', 1263271936},  {'l', 1269039104},  {'m', 1267990528},  
-    {'n', 1301020672},  {'o', 1250693120},  {'p', 1267990528},  {'q', 1263304704},  
-    {'r', 9857925120},  {'s', 5562990592},  {'t', 3415474176},  {'u', 1267990528},  
-    {'v', 1263796224},  {'w', 1263796224},  {'x', 1267468288},  {'y', 1267466240},  
-    {'z', 1263271936},  {'{', 2},           {'|', 2},           {'}', 2},           
-    {'~', 2},           {'Ё', 1263271936}, {'А', 1263271936}, {'Б', 1263271936}, 
-    {'В', 1263271936}, {'Г', 1263271936}, {'Д', 1263271936}, {'Е', 1263271936}, 
-    {'Ж', 1263271936}, {'З', 1263271936}, {'И', 1263271936}, {'Й', 1263271936}, 
-    {'К', 1263271936}, {'Л', 1263271936}, {'М', 1263271936}, {'Н', 1263271936}, 
-    {'О', 1263271936}, {'П', 1263271936}, {'Р', 1263271936}, {'С', 1263271936}, 
-    {'Т', 1263271936}, {'У', 1263271936}, {'Ф', 1263271936}, {'Х', 1263271936}, 
-    {'Ц', 1263271936}, {'Ч', 1263271936}, {'Ш', 1263271936}, {'Щ', 1263271936}, 
-    {'Ъ', 1263271936}, {'Ы', 1263271936}, {'Ь', 1263271936}, {'Э', 1263271936}, 
-    {'Ю', 1263271936}, {'Я', 1263271936}, {'а', 1263271936}, {'б', 1263271936}, 
-    {'в', 1263271936}, {'г', 1263271936}, {'д', 1263271936}, {'е', 1263271936}, 
-    {'ж', 1263271936}, {'з', 1263271936}, {'и', 1263271936}, {'й', 1263271936}, 
-    {'к', 1263271936}, {'л', 1263271936}, {'м', 1263271936}, {'н', 1263271936}, 
-    {'о', 1263271936}, {'п', 1263271936}, {'р', 1263271936}, {'с', 1263271936}, 
-    {'т', 1263271936}, {'у', 1263271936}, {'ф', 1263271936}, {'х', 1263271936}, 
-    {'ц', 1263271936}, {'ч', 1263271936}, {'ш', 1263271936}, {'щ', 1263271936}, 
-    {'ъ', 1263271936}, {'ы', 1263271936}, {'ь', 1263271936}, {'э', 1263271936}, 
-    {'ю', 1263271936}, {'я', 1263271936}, {'ё', 1263271936}
+static const std::map<char32_t, uint32_t> categories_table = {
+    {'\0', 1},       {'\X01', 1},     {'\X02', 1},     {'\X03', 1},     
+    {'\X04', 1},     {'\X05', 1},     {'\X06', 1},     {'\a', 1},       
+    {'\b', 1},       {'\t', 1},       {'\n', 1},       {'\v', 1},       
+    {'\f', 1},       {'\r', 1},       {'\X0e', 1},     {'\X0f', 1},     
+    {'\X10', 1},     {'\X11', 1},     {'\X12', 1},     {'\X13', 1},     
+    {'\X14', 1},     {'\X15', 1},     {'\X16', 1},     {'\X17', 1},     
+    {'\X18', 1},     {'\X19', 1},     {'\X1a', 1},     {'\X1b', 1},     
+    {'\X1c', 1},     {'\X1d', 1},     {'\X1e', 1},     {'\X1f', 1},     
+    {' ', 1},        {'!', 2},        {", 12},         {'#', 2},        
+    {'$', 24},       {'%', 2},        {'&', 2},        {', 32},         
+    {'(', 2},        {')', 2},        {'*', 2},        {'+', 131074},   
+    {',', 2},        {'-', 131074},   {'.', 65538},    {'/', 2},        
+    {'0', 2106304},  {'1', 2122624},  {'2', 2122496},  {'3', 2122496},  
+    {'4', 2122496},  {'5', 4219648},  {'6', 2122496},  {'7', 4219648},  
+    {'8', 2122240},  {'9', 4219392},  {':', 2},        {';', 2},        
+    {'<', 2},        {'>', 2},        {'?', 2},        {'@', 2},        
+    {'A', 4988928},  {'B', 4989952},  {'C', 4988928},  {'D', 5021696},  
+    {'E', 5021696},  {'F', 4988928},  {'G', 4980736},  {'H', 4980736},  
+    {'I', 4980736},  {'J', 4980736},  {'K', 4980736},  {'L', 4980736},  
+    {'M', 4980736},  {'N', 4980736},  {'O', 4980736},  {'P', 4980736},  
+    {'Q', 5013504},  {'R', 4980736},  {'S', 5013504},  {'T', 4980736},  
+    {'U', 4980736},  {'V', 4980736},  {'W', 4980736},  {'X', 4982784},  
+    {'Y', 4980736},  {'Z', 4980736},  {'[', 2},        {']', 2},        
+    {'^', 2},        {'_', 2883584},  {'`', 2},        {'a', 3416064},  
+    {'b', 5514240},  {'c', 3416064},  {'d', 2924544},  {'e', 3448832},  
+    {'f', 3416064},  {'g', 2883584},  {'h', 2883584},  {'i', 3407872},  
+    {'j', 4980736},  {'k', 2883584},  {'l', 3407872},  {'m', 3407872},  
+    {'n', 2883584},  {'o', 2887680},  {'p', 3407872},  {'q', 5013504},  
+    {'r', 3407872},  {'s', 3440640},  {'t', 3407872},  {'u', 3407872},  
+    {'v', 5505024},  {'w', 5505024},  {'x', 2885632},  {'y', 2883584},  
+    {'z', 4980736},  {'{', 2},        {'|', 2},        {'}', 2},        
+    {'~', 2},        {'Ё', 4980736}, {'А', 4980736}, {'Б', 4980736}, 
+    {'В', 4980736}, {'Г', 4980736}, {'Д', 4980736}, {'Е', 4980736}, 
+    {'Ж', 4980736}, {'З', 4980736}, {'И', 4980736}, {'Й', 4980736}, 
+    {'К', 4980736}, {'Л', 4980736}, {'М', 4980736}, {'Н', 4980736}, 
+    {'О', 4980736}, {'П', 4980736}, {'Р', 4980736}, {'С', 4980736}, 
+    {'Т', 4980736}, {'У', 4980736}, {'Ф', 4980736}, {'Х', 4980736}, 
+    {'Ц', 4980736}, {'Ч', 4980736}, {'Ш', 4980736}, {'Щ', 4980736}, 
+    {'Ъ', 4980736}, {'Ы', 4980736}, {'Ь', 4980736}, {'Э', 4980736}, 
+    {'Ю', 4980736}, {'Я', 4980736}, {'а', 4980736}, {'б', 4980736}, 
+    {'в', 5505024}, {'г', 4980736}, {'д', 4980736}, {'е', 2883584}, 
+    {'ж', 4980736}, {'з', 4980736}, {'и', 4980736}, {'й', 4980736}, 
+    {'к', 4980736}, {'л', 4980736}, {'м', 4980736}, {'н', 4980736}, 
+    {'о', 4980736}, {'п', 4980736}, {'р', 4980736}, {'с', 4980736}, 
+    {'т', 4980736}, {'у', 4980736}, {'ф', 4980736}, {'х', 4980736}, 
+    {'ц', 4980736}, {'ч', 4980736}, {'ш', 4980736}, {'щ', 2883584}, 
+    {'ъ', 4980736}, {'ы', 4980736}, {'ь', 4980736}, {'э', 4980736}, 
+    {'ю', 4980736}, {'я', 4980736}, {'ё', 4980736}
 };
 
 
@@ -111,7 +128,7 @@ uint64_t get_categories_set(char32_t c){
         return 1ULL << Other;
     }
 }
-bool myfirstscaner::start_proc(){
+bool Scaner::start_proc(){
     bool t = true;
     state = -1;
     /* For an automaton that processes a token, the state with the number (-1) is
@@ -137,14 +154,14 @@ bool myfirstscaner::start_proc(){
     if(belongs(STRING5, char_categories)){
         (loc->pcurrent_char)--; automaton = A_number;
         state = 0;
-        int_val = 0;
-          float_val = 0;
-          is_float = false;
-          integer_part = 0;
-          fractional_part = 0;
-          exponent = 1;
-          exp_sign = 1;
-          frac_part_num_digits = 0;
+        int_val = 0;
+          float_val = 0;
+          is_float = false;
+          integer_part = 0;
+          fractional_part = 0;
+          exponent = 1;
+          exp_sign = 1;
+          frac_part_num_digits = 0;
           token.code = Integer;
         return t;
     }
@@ -159,48 +176,50 @@ bool myfirstscaner::start_proc(){
     return t;
 }
 
-bool myfirstscaner::unknown_proc(){
+bool Scaner::unknown_proc(){
     return belongs(Other, char_categories);
 }
 
 struct Keyword_list_elem{
     std::u32string keyword;
-    codes kw_code;
+    Lexem_code kw_code;
 };
 
 static const Keyword_list_elem kwlist[] = {
-    {U"array", k6},       {U"bool", k11},       
-    {U"bool16_t", k30},   {U"bool32_t", k31},   
-    {U"bool64_t", k32},   {U"bool8_t", k29},    
-    {U"byte", k15},       {U"char", k12},       
-    {U"char16_t", k34},   {U"char32_t", k35},   
-    {U"chat8_t", k33},    {U"const", k41},      
-    {U"elif", k49},       {U"else", k50},       
-    {U"endif", k51},      {U"enum", k42},       
-    {U"export", k3},      {U"false", k46},      
-    {U"float", k9},       {U"float128_t", k28}, 
-    {U"float32_t", k26},  {U"float64_t", k27},  
-    {U"fn", k44},         {U"for", k52},        
-    {U"if", k47},         {U"import", k2},      
-    {U"int", k8},         {U"int128_t", k20},   
-    {U"int16_t", k17},    {U"int32_t", k18},    
-    {U"int64_t", k19},    {U"int8_t", k16},     
-    {U"long short", k7},  {U"match", k58},      
-    {U"module", k1},      {U"print", k57},      
-    {U"read", k56},       {U"ref", k40},        
-    {U"repeat", k54},     {U"string", k13},     
-    {U"string16_t", k37}, {U"string32_t", k38}, 
-    {U"string8_t", k36},  {U"struct", k43},     
-    {U"then", k48},       {U"true", k45},       
-    {U"type", k5},        {U"uint", k10},       
-    {U"uint128_t", k25},  {U"uint16_t", k22},   
-    {U"uint32_t", k23},   {U"uint64_t", k24},   
-    {U"uint8_t", k21},    {U"until", k55},      
-    {U"val", k39},        {U"var", k4},         
-    {U"void", k14},       {U"while", k53}
+    {U"array", Kw_array},         {U"bool", Kw_bool},           
+    {U"bool16_t", Kw_bool16},     {U"bool32_t", Kw_bool32},     
+    {U"bool64_t", Kw_bool64},     {U"bool8_t", Kw_bool8},       
+    {U"break", Kw_break},         {U"byte", Kw_byte},           
+    {U"char", Kw_char},           {U"char16_t", Kw_char16},     
+    {U"char32_t", Kw_char32},     {U"char8_t", Kw_char8},       
+    {U"const", Kw_const},         {U"continue", Kw_continue},   
+    {U"elif", Kw_elif},           {U"else", Kw_else},           
+    {U"endif", Kw_endif},         {U"enum", Kw_enum},           
+    {U"export", Kw_export},       {U"false", Kw_false},         
+    {U"float", Kw_float},         {U"float128_t", Kw_float128}, 
+    {U"float32_t", Kw_float32},   {U"float64_t", Kw_float64},   
+    {U"fn", Kw_fn},               {U"for", Kw_for},             
+    {U"if", Kw_if},               {U"int", Kw_int},             
+    {U"int128_t", Kw_int128},     {U"int16_t", Kw_int16},       
+    {U"int32_t", Kw_int32},       {U"int64_t", Kw_int64},       
+    {U"int8_t", Kw_int8},         {U"long", Kw_long},           
+    {U"match", Kw_match},         {U"module", Kw_module},       
+    {U"print", Kw_print},         {U"read", Kw_read},           
+    {U"ref", Kw_ref},             {U"repeat", Kw_repeat},       
+    {U"return", Kw_return},       {U"short", Kw_short},         
+    {U"string", Kw_string},       {U"string16_t", Kw_string16}, 
+    {U"string32_t", Kw_string32}, {U"string8_t", Kw_string8},   
+    {U"struct", Kw_struct},       {U"then", Kw_then},           
+    {U"true", Kw_true},           {U"type", Kw_type},           
+    {U"uint", Kw_uint},           {U"uint128_t", Kw_uint128},   
+    {U"uint16_t", Kw_uint16},     {U"uint32_t", Kw_uint32},     
+    {U"uint64_t", Kw_uint64},     {U"uint8_t", Kw_uint8},       
+    {U"until", Kw_until},         {U"val", Kw_val},             
+    {U"var", Kw_var},             {U"void", Kw_void},           
+    {U"while", Kw_while},         {U"вещ80", Kw_float80}
 };
 
-#define NUM_OF_KEYWORDS 58
+#define NUM_OF_KEYWORDS 62
 
 #define THERE_IS_NO_KEYWORD (-1)
 
@@ -226,126 +245,33 @@ static int search_keyword(const std::u32string& finded_keyword){
 }
 
 static const std::set<size_t> final_states_for_idkeywords = {
-    1, 2, 3, 4, 5, 6
+    1
 };
 
-bool myfirstscaner::idkeyword_proc(){
+bool Scaner::idkeyword_proc(){
     bool t             = true;
     bool there_is_jump = false;
     switch(state){
         case 0:
             if(belongs(IDKEYWORD0, char_categories)){
-                state = 2;
+                state = 1;
                 there_is_jump = true;
             }
              else if(belongs(IDKEYWORD1, char_categories)){
-                buffer += ch;
-                state = 2;
-                there_is_jump = true;
-            }
-             else if(belongs(IDKEYWORD2, char_categories)){
-                buffer += ch;
-                state = 3;
-                there_is_jump = true;
-            }
-
-            break;
-        case 2:
-            if(belongs(IDKEYWORD3, char_categories)){
-                state = 2;
-                there_is_jump = true;
-            }
-             else if(belongs(IDKEYWORD4, char_categories)){
-                buffer += ch;
-                state = 2;
-                there_is_jump = true;
-            }
-
-            break;
-        case 3:
-            if(belongs(IDKEYWORD5, char_categories)){
-                state = 2;
-                there_is_jump = true;
-            }
-             else if(belongs(STRING8, char_categories)){
-                buffer += ch;
-                state = 4;
-                there_is_jump = true;
-            }
-
-            break;
-        case 4:
-            if(belongs(IDKEYWORD6, char_categories)){
-                state = 2;
-                there_is_jump = true;
-            }
-             else if(belongs(IDKEYWORD7, char_categories)){
-                buffer += ch;
-                state = 5;
-                there_is_jump = true;
-            }
-
-            break;
-        case 5:
-            if(belongs(IDKEYWORD8, char_categories)){
-                state = 2;
-                there_is_jump = true;
-            }
-             else if(belongs(IDKEYWORD9, char_categories)){
-                buffer += ch;
-                state = 6;
-                there_is_jump = true;
-            }
-
-            break;
-        case 6:
-            if(belongs(IDKEYWORD10, char_categories)){
-                buffer += ch;
-                state = 8;
-                there_is_jump = true;
-            }
-             else if(belongs(IDKEYWORD11, char_categories)){
-                state = 2;
-                there_is_jump = true;
-            }
-
-            break;
-        case 7:
-            if(belongs(IDKEYWORD12, char_categories)){
                 buffer += ch;
                 state = 1;
                 there_is_jump = true;
             }
 
             break;
-        case 8:
-            if(belongs(IDKEYWORD13, char_categories)){
+        case 1:
+            if(belongs(IDKEYWORD2, char_categories)){
                 buffer += ch;
-                state = 11;
+                state = 1;
                 there_is_jump = true;
             }
-
-            break;
-        case 9:
-            if(belongs(IDKEYWORD14, char_categories)){
-                buffer += ch;
-                state = 7;
-                there_is_jump = true;
-            }
-
-            break;
-        case 10:
-            if(belongs(STRING8, char_categories)){
-                buffer += ch;
-                state = 9;
-                there_is_jump = true;
-            }
-
-            break;
-        case 11:
-            if(belongs(IDKEYWORD15, char_categories)){
-                buffer += ch;
-                state = 10;
+             else if(belongs(IDKEYWORD3, char_categories)){
+                state = 1;
                 there_is_jump = true;
             }
 
@@ -371,18 +297,19 @@ bool myfirstscaner::idkeyword_proc(){
 }
 
 static const State_for_char init_table_for_delimiters[] ={
-    {4, U'!'},  {38, U'#'}, {37, U'%'}, {14, U'&'}, {32, U'*'}, 
-    {30, U'+'}, {49, U','}, {31, U'-'}, {35, U'/'}, {40, U':'}, 
-    {50, U';'}, {16, U'<'}, {25, U'='}, {21, U'>'}, {0, U'?'},  
-    {47, U'['}, {12, U'^'}, {45, U'{'}, {1, U'|'},  {46, U'}'}, 
-    {26, U'~'}
+    {21, U'!'}, {54, U'#'}, {53, U'%'}, {31, U'&'}, {14, U'('}, 
+    {16, U')'}, {48, U'*'}, {46, U'+'}, {3, U','},  {47, U'-'}, 
+    {5, U'.'},  {51, U'/'}, {6, U':'},  {4, U';'},  {33, U'<'}, 
+    {38, U'>'}, {17, U'?'}, {56, U'@'}, {0, U'['},  {2, U']'},  
+    {29, U'^'}, {57, U'`'}, {12, U'{'}, {18, U'|'}, {13, U'}'}, 
+    {42, U'~'}
 };
 
 struct Elem {
     /** A pointer to a string of characters that can be crossed. */
     char32_t*       symbols;
     /** A lexeme code. */
-    codes code;
+    Lexem_code code;
     /** If the current character matches symbols[0], then the transition to the state
      *  first_state;
      *  if the current character matches symbols[1], then the transition to the state
@@ -393,60 +320,68 @@ struct Elem {
 };
 
 static const Elem delim_jump_table[] = {
-    {const_cast<char32_t*>(U""), d1, 0},        
-    {const_cast<char32_t*>(U"|:"), d15, 2},     
-    {const_cast<char32_t*>(U""), d2, 0},        
-    {const_cast<char32_t*>(U""), d37, 0},       
-    {const_cast<char32_t*>(U"|^&="), d8, 5},    
-    {const_cast<char32_t*>(U"|"), Unknown, 6},  
-    {const_cast<char32_t*>(U"^"), Unknown, 7},  
-    {const_cast<char32_t*>(U"&"), Unknown, 8},  
-    {const_cast<char32_t*>(U""), d14, 0},       
-    {const_cast<char32_t*>(U""), d3, 0},        
-    {const_cast<char32_t*>(U""), d5, 0},        
-    {const_cast<char32_t*>(U""), d7, 0},        
-    {const_cast<char32_t*>(U"^"), d17, 13},     
-    {const_cast<char32_t*>(U""), d4, 0},        
-    {const_cast<char32_t*>(U"&"), d19, 15},     
-    {const_cast<char32_t*>(U""), d6, 0},        
-    {const_cast<char32_t*>(U"=<-:"), d9, 17},   
-    {const_cast<char32_t*>(U""), d11, 0},       
-    {const_cast<char32_t*>(U""), d21, 0},       
-    {const_cast<char32_t*>(U""), d41, 0},       
-    {const_cast<char32_t*>(U""), d46, 0},       
-    {const_cast<char32_t*>(U"=>"), d10, 22},    
-    {const_cast<char32_t*>(U""), d12, 0},       
-    {const_cast<char32_t*>(U">"), d22, 24},     
-    {const_cast<char32_t*>(U""), d23, 0},       
-    {const_cast<char32_t*>(U""), d13, 0},       
-    {const_cast<char32_t*>(U"|^&"), d24, 27},   
-    {const_cast<char32_t*>(U""), d16, 0},       
-    {const_cast<char32_t*>(U""), d18, 0},       
-    {const_cast<char32_t*>(U""), d20, 0},       
-    {const_cast<char32_t*>(U""), d25, 0},       
-    {const_cast<char32_t*>(U""), d26, 0},       
-    {const_cast<char32_t*>(U"*"), d27, 33},     
-    {const_cast<char32_t*>(U"."), d31, 34},     
-    {const_cast<char32_t*>(U""), d32, 0},       
-    {const_cast<char32_t*>(U"."), d28, 36},     
-    {const_cast<char32_t*>(U""), d30, 0},       
-    {const_cast<char32_t*>(U""), d29, 0},       
-    {const_cast<char32_t*>(U"#"), d35, 39},     
-    {const_cast<char32_t*>(U""), d36, 0},       
-    {const_cast<char32_t*>(U":]>="), d48, 41},  
-    {const_cast<char32_t*>(U""), d38, 0},       
-    {const_cast<char32_t*>(U""), d43, 0},       
-    {const_cast<char32_t*>(U""), d47, 0},       
-    {const_cast<char32_t*>(U""), d49, 0},       
-    {const_cast<char32_t*>(U""), d39, 0},       
-    {const_cast<char32_t*>(U""), d40, 0},       
-    {const_cast<char32_t*>(U":"), Unknown, 48}, 
-    {const_cast<char32_t*>(U""), d42, 0},       
-    {const_cast<char32_t*>(U""), d44, 0},       
-    {const_cast<char32_t*>(U""), d45, 0}
+    {const_cast<char32_t*>(U":"), Open_square_bracket, 1},     
+    {const_cast<char32_t*>(U""), Allocated_array_open, 0},     
+    {const_cast<char32_t*>(U""), Closed_square_bracket, 0},    
+    {const_cast<char32_t*>(U""), Comma, 0},                    
+    {const_cast<char32_t*>(U""), Semicolon, 0},                
+    {const_cast<char32_t*>(U""), Dot, 0},                      
+    {const_cast<char32_t*>(U")]>:="), Colon, 7},               
+    {const_cast<char32_t*>(U""), Tuple_end, 0},                
+    {const_cast<char32_t*>(U""), Allocated_array_close, 0},    
+    {const_cast<char32_t*>(U""), Label_suffix, 0},             
+    {const_cast<char32_t*>(U""), Scope_resolution, 0},         
+    {const_cast<char32_t*>(U""), Assign, 0},                   
+    {const_cast<char32_t*>(U""), Open_curly_bracket, 0},       
+    {const_cast<char32_t*>(U""), Closed_curly_bracket, 0},     
+    {const_cast<char32_t*>(U":"), Open_round_bracket, 15},     
+    {const_cast<char32_t*>(U""), Tuple_begin, 0},              
+    {const_cast<char32_t*>(U""), Closed_round_bracket, 0},     
+    {const_cast<char32_t*>(U""), Conditional_op, 0},           
+    {const_cast<char32_t*>(U"|:"), Bitwise_or, 19},            
+    {const_cast<char32_t*>(U""), Logical_or, 0},               
+    {const_cast<char32_t*>(U""), Module_name_prefix, 0},       
+    {const_cast<char32_t*>(U"|^&="), Logical_not, 22},         
+    {const_cast<char32_t*>(U"|"), Unknown, 23},                
+    {const_cast<char32_t*>(U"^"), Unknown, 24},                
+    {const_cast<char32_t*>(U"&"), Unknown, 25},                
+    {const_cast<char32_t*>(U""), Not_equals, 0},               
+    {const_cast<char32_t*>(U""), Logical_or_not, 0},           
+    {const_cast<char32_t*>(U""), Logical_xor_not, 0},          
+    {const_cast<char32_t*>(U""), Logical_and_not, 0},          
+    {const_cast<char32_t*>(U"^"), Bitwise_xor, 30},            
+    {const_cast<char32_t*>(U""), Logical_xor, 0},              
+    {const_cast<char32_t*>(U"&"), Bitwise_and, 32},            
+    {const_cast<char32_t*>(U""), Logical_and, 0},              
+    {const_cast<char32_t*>(U"=<-:"), Less_than, 34},           
+    {const_cast<char32_t*>(U""), Lower_or_equals, 0},          
+    {const_cast<char32_t*>(U""), Left_shift, 0},               
+    {const_cast<char32_t*>(U""), Assign_to_field, 0},          
+    {const_cast<char32_t*>(U""), Label_prefix, 0},             
+    {const_cast<char32_t*>(U"=>"), Greater_than, 39},          
+    {const_cast<char32_t*>(U""), Greater_or_equals, 0},        
+    {const_cast<char32_t*>(U">"), Right_shift, 41},            
+    {const_cast<char32_t*>(U""), Signed_right_shift, 0},       
+    {const_cast<char32_t*>(U"|^&"), Bitwise_not, 43},          
+    {const_cast<char32_t*>(U""), Bitwise_or_not, 0},           
+    {const_cast<char32_t*>(U""), Bitwise_xor_not, 0},          
+    {const_cast<char32_t*>(U""), Bitwise_and_not, 0},          
+    {const_cast<char32_t*>(U""), Plus, 0},                     
+    {const_cast<char32_t*>(U""), Minus, 0},                    
+    {const_cast<char32_t*>(U"*"), Mul, 49},                    
+    {const_cast<char32_t*>(U"."), Power, 50},                  
+    {const_cast<char32_t*>(U""), Fpower, 0},                   
+    {const_cast<char32_t*>(U"."), Div, 52},                    
+    {const_cast<char32_t*>(U""), Fdiv, 0},                     
+    {const_cast<char32_t*>(U""), Mod, 0},                      
+    {const_cast<char32_t*>(U"#"), Sizeof, 55},                 
+    {const_cast<char32_t*>(U""), Dimension_size, 0},           
+    {const_cast<char32_t*>(U""), At_sign, 0},                  
+    {const_cast<char32_t*>(U"?"), Unknown, 58},                
+    {const_cast<char32_t*>(U""), Conditional_and_apostrof, 0}
 };
 
-bool myfirstscaner::delimiter_proc(){
+bool Scaner::delimiter_proc(){
     bool t = false;
     if(-1 == state){
         state = get_init_state(ch, init_table_for_delimiters,
@@ -465,82 +400,75 @@ bool myfirstscaner::delimiter_proc(){
 }
 
 static const std::set<size_t> final_states_for_numbers = {
-    1, 2,  3, 4, 5, 6, 7, 8, 
-    9, 10
+    1, 2, 3, 4, 5, 6, 7, 8
 };
 
-bool myfirstscaner::number_proc(){
+bool Scaner::number_proc(){
     bool t             = true;
     bool there_is_jump = false;
     switch(state){
         case 0:
             if(belongs(STRING10, char_categories)){
                 integer_part = integer_part * 10 + digit2int(ch);
-                state = 10;
+                state = 8;
                 there_is_jump = true;
             }
              else if(belongs(STRING11, char_categories)){
                 integer_part = integer_part * 10 + digit2int(ch);
-                state = 9;
+                state = 7;
                 there_is_jump = true;
             }
 
             break;
         case 1:
-            if(belongs(NUMBER0, char_categories)){
-                precision = ch; is_float = true;
+            if(belongs(STRING5, char_categories)){
+                fractional_part = fractional_part / 10 + digit2int(ch); frac_part_num_digits += 1;
                 state = 1;
+                there_is_jump = true;
+            }
+             else if(belongs(NUMBER0, char_categories)){
+                precision = ch; is_float = true;
+                state = 15;
                 there_is_jump = true;
             }
 
             break;
         case 2:
-            if(belongs(NUMBER1, char_categories)){
-                exp_sign = setexp(ch);
-                state = 14;
+            if(belongs(STRING2, char_categories)){
+                state = 1;
                 there_is_jump = true;
             }
              else if(belongs(STRING5, char_categories)){
                 fractional_part = fractional_part / 10 + digit2int(ch); frac_part_num_digits += 1;
-                state = 8;
+                state = 1;
                 there_is_jump = true;
             }
              else if(belongs(NUMBER0, char_categories)){
                 precision = ch; is_float = true;
-                state = 1;
+                state = 15;
                 there_is_jump = true;
             }
 
             break;
         case 3:
             if(belongs(STRING2, char_categories)){
-                state = 2;
+                state = 9;
                 there_is_jump = true;
             }
-             else if(belongs(NUMBER1, char_categories)){
-                exp_sign = setexp(ch);
-                state = 14;
-                there_is_jump = true;
-            }
-             else if(belongs(STRING5, char_categories)){
-                fractional_part = fractional_part / 10 + digit2int(ch); frac_part_num_digits += 1;
-                state = 8;
-                there_is_jump = true;
-            }
-             else if(belongs(NUMBER0, char_categories)){
-                precision = ch; is_float = true;
-                state = 1;
+             else if(belongs(STRING3, char_categories)){
+                integer_part = (integer_part << 1) + digit2int(ch);
+                state = 3;
                 there_is_jump = true;
             }
 
             break;
         case 4:
             if(belongs(STRING2, char_categories)){
-                state = 11;
+                state = 10;
                 there_is_jump = true;
             }
-             else if(belongs(STRING3, char_categories)){
-                integer_part = (integer_part << 1) + digit2int(ch);
+             else if(belongs(STRING4, char_categories)){
+                integer_part = (integer_part << 3) + digit2int(ch);
                 state = 4;
                 there_is_jump = true;
             }
@@ -551,8 +479,8 @@ bool myfirstscaner::number_proc(){
                 state = 12;
                 there_is_jump = true;
             }
-             else if(belongs(STRING4, char_categories)){
-                integer_part = (integer_part << 3) + digit2int(ch);
+             else if(belongs(STRING5, char_categories)){
+                exponent = exponent * 10 + digit2int(ch);
                 state = 5;
                 there_is_jump = true;
             }
@@ -563,8 +491,8 @@ bool myfirstscaner::number_proc(){
                 state = 14;
                 there_is_jump = true;
             }
-             else if(belongs(STRING5, char_categories)){
-                exponent = exponent * 10 + digit2int(ch);
+             else if(belongs(STRING9, char_categories)){
+                integer_part = (integer_part << 4) + digit2int(ch);
                 state = 6;
                 there_is_jump = true;
             }
@@ -572,115 +500,87 @@ bool myfirstscaner::number_proc(){
             break;
         case 7:
             if(belongs(STRING2, char_categories)){
-                state = 16;
+                state = 13;
                 there_is_jump = true;
             }
-             else if(belongs(STRING9, char_categories)){
-                integer_part = (integer_part << 4) + digit2int(ch);
+             else if(belongs(NUMBER1, char_categories)){
+                is_float = true;
+                state = 11;
+                there_is_jump = true;
+            }
+             else if(belongs(STRING5, char_categories)){
+                integer_part = integer_part * 10 + digit2int(ch);
                 state = 7;
+                there_is_jump = true;
+            }
+             else if(belongs(NUMBER0, char_categories)){
+                precision = ch; is_float = true;
+                state = 15;
                 there_is_jump = true;
             }
 
             break;
         case 8:
             if(belongs(STRING2, char_categories)){
-                state = 14;
+                state = 13;
                 there_is_jump = true;
             }
              else if(belongs(NUMBER1, char_categories)){
-                exp_sign = setexp(ch);
-                state = 14;
+                is_float = true;
+                state = 11;
                 there_is_jump = true;
             }
              else if(belongs(STRING5, char_categories)){
-                fractional_part = fractional_part / 10 + digit2int(ch); frac_part_num_digits += 1;
-                state = 8;
+                integer_part = integer_part * 10 + digit2int(ch);
+                state = 7;
+                there_is_jump = true;
+            }
+             else if(belongs(STRING6, char_categories)){
+                state = 9;
                 there_is_jump = true;
             }
              else if(belongs(NUMBER0, char_categories)){
                 precision = ch; is_float = true;
-                state = 1;
+                state = 15;
+                there_is_jump = true;
+            }
+             else if(belongs(STRING7, char_categories)){
+                state = 14;
+                there_is_jump = true;
+            }
+             else if(belongs(STRING8, char_categories)){
+                state = 10;
                 there_is_jump = true;
             }
 
             break;
         case 9:
-            if(belongs(STRING2, char_categories)){
-                state = 15;
-                there_is_jump = true;
-            }
-             else if(belongs(NUMBER1, char_categories)){
-                exp_sign = setexp(ch);
-                state = 14;
-                there_is_jump = true;
-            }
-             else if(belongs(NUMBER2, char_categories)){
-                is_float = true;
-                state = 13;
-                there_is_jump = true;
-            }
-             else if(belongs(STRING5, char_categories)){
-                integer_part = integer_part * 10 + digit2int(ch);
-                state = 9;
-                there_is_jump = true;
-            }
-             else if(belongs(NUMBER0, char_categories)){
-                precision = ch; is_float = true;
-                state = 1;
+            if(belongs(STRING3, char_categories)){
+                integer_part = (integer_part << 1) + digit2int(ch);
+                state = 3;
                 there_is_jump = true;
             }
 
             break;
         case 10:
-            if(belongs(STRING2, char_categories)){
-                state = 15;
-                there_is_jump = true;
-            }
-             else if(belongs(NUMBER1, char_categories)){
-                exp_sign = setexp(ch);
-                state = 14;
-                there_is_jump = true;
-            }
-             else if(belongs(NUMBER2, char_categories)){
-                is_float = true;
-                state = 13;
-                there_is_jump = true;
-            }
-             else if(belongs(STRING5, char_categories)){
-                integer_part = integer_part * 10 + digit2int(ch);
-                state = 9;
-                there_is_jump = true;
-            }
-             else if(belongs(STRING6, char_categories)){
-                state = 11;
-                there_is_jump = true;
-            }
-             else if(belongs(NUMBER0, char_categories)){
-                precision = ch; is_float = true;
-                state = 1;
-                there_is_jump = true;
-            }
-             else if(belongs(STRING7, char_categories)){
-                state = 16;
-                there_is_jump = true;
-            }
-             else if(belongs(STRING8, char_categories)){
-                state = 12;
-                there_is_jump = true;
-            }
-
-            break;
-        case 11:
-            if(belongs(STRING3, char_categories)){
-                integer_part = (integer_part << 1) + digit2int(ch);
+            if(belongs(STRING4, char_categories)){
+                integer_part = (integer_part << 3) + digit2int(ch);
                 state = 4;
                 there_is_jump = true;
             }
 
             break;
+        case 11:
+            if(belongs(STRING5, char_categories)){
+                fractional_part = fractional_part / 10 + digit2int(ch); frac_part_num_digits += 1;
+                state = 2;
+                there_is_jump = true;
+            }
+
+            break;
         case 12:
-            if(belongs(STRING4, char_categories)){
-                integer_part = (integer_part << 3) + digit2int(ch);
+            if(belongs(STRING5, char_categories)){
+                exponent = exponent * 10 + digit2int(ch);
                 state = 5;
                 there_is_jump = true;
             }
@@ -688,32 +588,29 @@ bool myfirstscaner::number_proc(){
             break;
         case 13:
             if(belongs(STRING5, char_categories)){
-                fractional_part = fractional_part / 10 + digit2int(ch); frac_part_num_digits += 1;
-                state = 3;
+                integer_part = integer_part * 10 + digit2int(ch);
+                state = 7;
                 there_is_jump = true;
             }
 
             break;
         case 14:
-            if(belongs(STRING5, char_categories)){
-                exponent = exponent * 10 + digit2int(ch);
+            if(belongs(STRING9, char_categories)){
+                integer_part = (integer_part << 4) + digit2int(ch);
                 state = 6;
                 there_is_jump = true;
             }
 
             break;
         case 15:
-            if(belongs(STRING5, char_categories)){
-                integer_part = integer_part * 10 + digit2int(ch);
-                state = 9;
+            if(belongs(NUMBER2, char_categories)){
+                exp_sign = setexp(ch);
+                state = 12;
                 there_is_jump = true;
             }
-
-            break;
-        case 16:
-            if(belongs(STRING9, char_categories)){
-                integer_part = (integer_part << 4) + digit2int(ch);
-                state = 7;
+             else if(belongs(STRING5, char_categories)){
+                exponent = exponent * 10 + digit2int(ch);
+                state = 5;
                 there_is_jump = true;
             }
 
@@ -728,13 +625,13 @@ bool myfirstscaner::number_proc(){
             printf("At line %zu unexpectedly ended the number.", loc->current_line);
             en->increment_number_of_errors();
         }
-        
-          if(is_float){
-            token.float_val=build_float();
-            token.code = precision2code(precision);
-          } else {
-            token.int_val=integer_part;
-            token.code = Integer;
+        
+          if(is_float){
+            token.float_val=build_float();
+            token.code = precision2code(precision);
+          } else {
+            token.int_val=integer_part;
+            token.code = Integer;
           }
     }
 
@@ -746,7 +643,7 @@ static const std::set<size_t> final_states_for_strings = {
     8, 9, 10
 };
 
-bool myfirstscaner::string_proc(){
+bool Scaner::string_proc(){
     bool t             = true;
     bool there_is_jump = false;
     switch(state){
@@ -1112,17 +1009,17 @@ bool myfirstscaner::string_proc(){
     return t;
 }
 
-void myfirstscaner::none_proc(){
+void Scaner::none_proc(){
     /* This subroutine will be called if, after reading the input text, it turned
      * out to be in the A_start automaton. Then you do not need to do anything. */
 }
 
-void myfirstscaner::unknown_final_proc(){
+void Scaner::unknown_final_proc(){
     /* This subroutine will be called if, after reading the input text, it turned
      * out to be in the A_unknown automaton. Then you do not need to do anything. */
 }
 
-void myfirstscaner::idkeyword_final_proc(){
+void Scaner::idkeyword_final_proc(){
     if(!is_elem(state, final_states_for_idkeywords)){
         printf("At line %zu unexpectedly ended identifier or keyword.", loc->current_line);
         en->increment_number_of_errors();
@@ -1135,28 +1032,28 @@ void myfirstscaner::idkeyword_final_proc(){
 
 }
 
-void myfirstscaner::delimiter_final_proc(){
+void Scaner::delimiter_final_proc(){
         
     token.code = delim_jump_table[state].code;
     
 }
 
-void myfirstscaner::number_final_proc(){
+void Scaner::number_final_proc(){
     if(!is_elem(state, final_states_for_numbers)){
         printf("At line %zu unexpectedly ended the number.", loc->current_line);
         en->increment_number_of_errors();
     }
-    
-          if(is_float){
-            token.float_val=build_float();
-            token.code = precision2code(precision);
-          } else {
-            token.int_val=integer_part;
-            token.code = Integer;
+    
+          if(is_float){
+            token.float_val=build_float();
+            token.code = precision2code(precision);
+          } else {
+            token.int_val=integer_part;
+            token.code = Integer;
           }
 }
 
-void myfirstscaner::string_final_proc(){
+void Scaner::string_final_proc(){
     if(!is_elem(state, final_states_for_strings)){
         printf("At line %zu unexpectedly ended a string literal.", loc->current_line);
         en->increment_number_of_errors();
@@ -1165,7 +1062,7 @@ void myfirstscaner::string_final_proc(){
     token.string_index = strs -> insert(buffer);
 }
 
-Lexem_info myfirstscaner::current_lexem(){
+Lexem_info Scaner::current_lexem(){
     automaton = A_start; token.code = None;
     lexem_begin = loc->pcurrent_char;
     bool t = true;

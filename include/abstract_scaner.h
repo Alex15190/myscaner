@@ -9,12 +9,13 @@
 #include "../include/errors_and_tries.h"
 
 template<typename Lexem_type>
-class Scaner{
+class Abstract_scaner{
 public:
-    Scaner<Lexem_type>() = default;
-    Scaner(Location_ptr location, const Errors_and_tries& et);
-    Scaner(const Scaner<Lexem_type>& orig) = default;
-    virtual ~Scaner() = default;
+    Abstract_scaner<Lexem_type>()                            = default;
+    Abstract_scaner(const Location_ptr&     location,
+                    const Errors_and_tries& et);
+    Abstract_scaner(const Abstract_scaner<Lexem_type>& orig) = default;
+    virtual ~Abstract_scaner()                               = default;
     /*  Function back() return the current lexem into the input stream. */
     void back();
     /* Function current_lexem() returns information about current lexem,
@@ -51,7 +52,9 @@ protected:
 };
 
 template<typename Lexem_type>
-Scaner<Lexem_type>::Scaner(Location_ptr location, const Errors_and_tries& et){
+Abstract_scaner<Lexem_type>::Abstract_scaner(const Location_ptr&     location,
+                                             const Errors_and_tries& et)
+{
     ids = et.ids_trie; strs = et.strs_trie; en = et.ec;
     loc = location;
     lexem_begin = location->pcurrent_char;
@@ -59,13 +62,15 @@ Scaner<Lexem_type>::Scaner(Location_ptr location, const Errors_and_tries& et){
 }
 
 template<typename Lexem_type>
-void Scaner<Lexem_type>::back(){
+void Abstract_scaner<Lexem_type>::back()
+{
     loc->pcurrent_char = lexem_begin;
     loc->current_line =  lexem_begin_line;
 }
 
 template<typename Lexem_type>
-size_t Scaner<Lexem_type>::lexem_begin_line_number(){
+size_t Abstract_scaner<Lexem_type>::lexem_begin_line_number()
+{
     return lexem_begin_line;
 }
 #endif
